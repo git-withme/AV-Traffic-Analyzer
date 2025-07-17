@@ -2,36 +2,68 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 
-st.set_page_config(page_title="Smart City AV Traffic Flow Predictor")
+st.set_page_config(page_title="AV-Enabled Urban Traffic Dashboard", layout="wide")
 
-st.title("🚦 Smart City AV Traffic Flow Predictor - Bar Chart Example")
+st.title("🚦 AV-Enabled Urban Traffic Flow Analyzer")
 
-# Load your actual dataset
+# Load your dataset
 try:
     df = pd.read_csv('simulated_traffic_v2i.csv')
     df['Timestamp'] = pd.to_datetime(df['Timestamp'])
 
-    # Display table
-    st.write("### Sample Data")
-    st.dataframe(df.head())
+    # Sidebar for selecting chart type and time filter
+    st.sidebar.header("Dashboard Controls")
+    chart_type = st.sidebar.selectbox("Select Chart Type:", ["Bar Chart", "Line Chart", "Area Chart"])
+    group_by = st.sidebar.radio("Group Data By:", ["Raw", "Monthly", "Yearly"])
 
-    # Select only a small recent portion for clarity in bar chart
-    recent_df = df.sort_values('Timestamp').tail(10)
+    # Grouping logic
+    if group_by == "Monthly":
+        df_grouped = df.groupby(df['Timestamp'].dt.to_period('M')).sum().reset_index()
+        df_grouped['Timestamp'] = df_grouped['Timestamp'].dt.to_timestamp()
+    elif group_by == "Yearly":
+        df_grouped = df.groupby(df['Timestamp'].dt.year).sum().reset_index()
+        df_grouped.rename(columns={"Timestamp": "Year"}, inplace=True)
+    else:
+        df_grouped = df
 
-    # Bar Chart using real CSV data
-    fig, ax = plt.subplots(figsize=(6,2.5))
-    ax.bar(recent_df['Timestamp'].dt.strftime('%Y-%m-%d %H:%M'), 
-           recent_df['Vehicle_Count'], 
-           label='Total Vehicles', color='skyblue')
+    # Show sample table
+    with st.expander("📊 View Sample Data"):
+        st.dataframe(df.head())
 
-    ax.bar(recent_df['Timestamp'].dt.strftime('%Y-%m-%d %H:%M'), 
-           recent_df['AV_Vehicle_Count'], 
-           label='AV Vehicles', color='orange', bottom=recent_df['Vehicle_Count'] - recent_df['AV_Vehicle_Count'])
+    # Traffic Summary Metrics
+    col1, col2 = st.columns(2)
+    col1.metric("Total Vehicle Count", int(df['Vehicle_Count'].sum()))
+    col2.metric("Total AV Vehicle Count", int(df['AV_Vehicle_Count'].sum()))
 
-    ax.set_xticklabels(recent_df['Timestamp'].dt.strftime('%Y-%m-%d %H:%M'), rotation=45, ha='right')
+    # Plot based on user choice
+    fig, ax = plt.subplots(figsize=(7, 3))
+
+    if chart_type == "Bar Chart":
+        if group_by in ["Monthly", "Yearly"]:
+            x_labels = df_grouped['Timestamp'] if group_by == "Monthly" else df_grouped['Year']
+        else:
+            x_labels = df_grouped['Timestamp'].dt.strftime('%Y-%m-%d %H:%M')
+
+        ax.bar(x_labels, df_grouped['Vehicle_Count'], label='Total Vehicles', color='skyblue')
+        ax.bar(x_labels, df_grouped['AV_Vehicle_Count'], label='AV Vehicles', color='orange', bottom=df_grouped['Vehicle_Count'] - df_grouped['AV_Vehicle_Count'])
+        ax.set_xticks(ax.get_xticks()[::max(1, len(x_labels)//10)])
+
+    elif chart_type == "Line Chart":
+        ax.plot(df_grouped['Timestamp'] if group_by != "Yearly" else df_grouped['Year'],
+                df_grouped['Vehicle_Count'], label="Total Vehicles", color="blue")
+        ax.plot(df_grouped['Timestamp'] if group_by != "Yearly" else df_grouped['Year'],
+                df_grouped['AV_Vehicle_Count'], label="AV Vehicles", color="orange")
+
+    elif chart_type == "Area Chart":
+        ax.fill_between(df_grouped['Timestamp'] if group_by != "Yearly" else df_grouped['Year'],
+                        df_grouped['Vehicle_Count'], color="skyblue", alpha=0.5, label="Total Vehicles")
+        ax.fill_between(df_grouped['Timestamp'] if group_by != "Yearly" else df_grouped['Year'],
+                        df_grouped['AV_Vehicle_Count'], color="orange", alpha=0.5, label="AV Vehicles")
+
+    ax.set_title(f"Traffic Data ({chart_type})")
     ax.set_ylabel("Vehicle Count")
-    ax.set_title("Recent Traffic Counts (Bar Chart)")
     ax.legend()
+    plt.xticks(rotation=45)
 
     st.pyplot(fig)
 
