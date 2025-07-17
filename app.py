@@ -1,53 +1,39 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
 
-st.set_page_config(page_title="AV-Enabled Urban Traffic Dashboard", layout="wide")
+st.set_page_config(page_title="Smart City AV Traffic Flow Predictor")
 
-st.title("🚦 AV-Enabled Urban Traffic Flow Dashboard")
+st.title("🚦 Smart City AV Traffic Flow Predictor - Bar Chart Example")
 
-# Sidebar Options
-st.sidebar.header("Dashboard Controls")
-
+# Load your actual dataset
 try:
     df = pd.read_csv('simulated_traffic_v2i.csv')
     df['Timestamp'] = pd.to_datetime(df['Timestamp'])
 
-    # Date Range Filter via Sidebar
-    min_date = df['Timestamp'].min().date()
-    max_date = df['Timestamp'].max().date()
-    date_range = st.sidebar.date_input("Select Date Range:", [min_date, max_date])
+    # Display table
+    st.write("### Sample Data")
+    st.dataframe(df.head())
 
-    # Filter Data
-    mask = (df['Timestamp'].dt.date >= date_range[0]) & (df['Timestamp'].dt.date <= date_range[1])
-    filtered_df = df.loc[mask]
+    # Select only a small recent portion for clarity in bar chart
+    recent_df = df.sort_values('Timestamp').tail(10)
 
-    # Layout Columns
-    col1, col2 = st.columns(2)
+    # Bar Chart using real CSV data
+    fig, ax = plt.subplots(figsize=(8, 4))
+    ax.bar(recent_df['Timestamp'].dt.strftime('%Y-%m-%d %H:%M'), 
+           recent_df['Vehicle_Count'], 
+           label='Total Vehicles', color='skyblue')
 
-    with col1:
-        st.metric("Total Vehicle Count", int(filtered_df['Vehicle_Count'].sum()))
-    with col2:
-        st.metric("Total AV Vehicle Count", int(filtered_df['AV_Vehicle_Count'].sum()))
+    ax.bar(recent_df['Timestamp'].dt.strftime('%Y-%m-%d %H:%M'), 
+           recent_df['AV_Vehicle_Count'], 
+           label='AV Vehicles', color='orange', bottom=recent_df['Vehicle_Count'] - recent_df['AV_Vehicle_Count'])
 
-    # Smaller Graph Style
-    sns.set_style("whitegrid")
-    fig, ax = plt.subplots(figsize=(8, 3))  # Reduced size
-    ax.plot(filtered_df['Timestamp'], filtered_df['Vehicle_Count'], label="Vehicle Count", color="#4CAF50", linewidth=1.8)
-    ax.plot(filtered_df['Timestamp'], filtered_df['AV_Vehicle_Count'], label="AV Count", color="#FF5722", linestyle='--', linewidth=1.8)
-
-    ax.set_xlabel("Time")
-    ax.set_ylabel("Count")
-    ax.legend(loc="upper right", fontsize=8)
-    ax.set_title("Traffic Flow Trend", fontsize=12, fontweight="bold")
-    ax.tick_params(axis='x', rotation=30)
+    ax.set_xticklabels(recent_df['Timestamp'].dt.strftime('%Y-%m-%d %H:%M'), rotation=45, ha='right')
+    ax.set_ylabel("Vehicle Count")
+    ax.set_title("Recent Traffic Counts (Bar Chart)")
+    ax.legend()
 
     st.pyplot(fig)
-
-    # Data Table Option
-    with st.expander("Show Filtered Data Table"):
-        st.dataframe(filtered_df)
 
 except FileNotFoundError:
     st.error("File 'simulated_traffic_v2i.csv' not found. Please upload it to continue.")
