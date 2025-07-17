@@ -19,7 +19,7 @@ try:
     recent_df = df.sort_values('Timestamp').tail(10)
 
     # Bar Chart using real CSV data
-    fig, ax = plt.subplots(figsize=(5, 4))
+    fig, ax = plt.subplots(figsize=(6,2.5))
     ax.bar(recent_df['Timestamp'].dt.strftime('%Y-%m-%d %H:%M'), 
            recent_df['Vehicle_Count'], 
            label='Total Vehicles', color='skyblue')
